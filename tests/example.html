@@ -1,0 +1,25 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+  <head>
+    <title>{{title}}</title>
+  </head>
+  <body>
+    {% include header.html %}
+    <hr />
+    <p>{{date}}</p>
+    <p>{{body}}</p>
+    <p>
+      {% for1 i in "magic blah bleh"; delete_trailing:"," %}
+          pre {{$i}} post,
+      {% endfor1 %}
+    </p>
+    <p>
+      {% for2 v in "other thing to loop"; %}
+          {{$v}},
+      {% endfor2 %}
+    </p>
+    <hr />
+    {% include footer.html %}
+  </body>
+</html>

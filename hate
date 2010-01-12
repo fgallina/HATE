@@ -1,0 +1,177 @@
+#!/bin/sh
+
+###
+# Copyright (C) 2010: Fabián E. Gallina
+# Contact list: fabian@gnu.org.ar
+# Version 0.1
+#
+# This file is part of HATE (HTML from Ash Template Engine)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+###
+
+hate_variables=""
+hate_template=""
+
+hate_assign () {
+    local var=$1
+    local value=$2
+    hate_variables=$hate_variables$1":"$2","
+}
+
+# FIXME: evaluate if a config var should disable this
+hate_cleanup_tags () {
+
+    # Cleans non replaced variable tags
+    # Receives no arguments
+    # Returns nothing, updates $hate_template global variable directly.
+    hate_template=$(echo $hate_template | sed "s/{{[^}][^}]*}}//g")
+    echo -n ""
+}
+
+hate_parse_for () {
+
+    # Takes care of parsing:
+    # {% for1 i in "magic blah bleh"; delete_trailing:"," %}
+    #     {{$i}},
+    # {% endfor1 %}
+    #
+    # This will result in
+    # magic, blah, bleh
+    # 
+    # Note that everything after ; is optional and to retrieve the
+    # index variable you'll need to prepend a dollar sign ($) to the
+    # variable. This has been made in order to avoid collisions with
+    # standard variables.
+
+    local regex=""
+    local tag=""
+    local contents=""
+    local index=""
+    local elements=""
+    local trailing=""
+    local pre=""
+    local post=""
+    local parsed=""
+    local trailing_index=0
+    local trailing_maybe=""
+
+    regex="\{% *for([0-9]+) +([a-z0-9]+) +in +\"[^\"]+\" *;"
+    regex=$regex"( *delete_trailing:\"[^%]\")?"
+    regex=$regex" *%\}.*\{\{\\$\2\}\}.*\{% endfor\1 %\}"
+
+    while [ true ]; do
+        parsed=""
+        tag=$(echo $hate_template | egrep -o "$regex" | awk "NR>1{exit};1")       
+        
+        if [ "$tag" ]; then
+            contents=$(echo $tag | sed "s/[^%]*%}\|{%[%]*//g")
+            index=$(echo $tag | sed "s/{% *for[0-9][0-9]*  *\|  *in.*//g")
+            elements=$(echo $tag | sed "s/{% *for[0-9][0-9]*  *[a-z0-9][a-z0-9]*  *in  *\"\|\" *;.*//g")
+            trailing=$(echo $tag | awk -F 'delete_trailing:\"|\" *%}' '{print $2}')
+            pre=$(echo $contents | sed "s/{{\$$index}}.*//")
+            post=$(echo $contents | sed "s/.*{{\$$index}}//")
+
+            for element in $elements; do                
+                parsed=$parsed$pre$element$post
+            done
+            
+            if [ "$trailing" ]; then
+                trailing_index=$((${#parsed} - ${#trailing}))
+                trailing_maybe=${parsed:$trailing_index}
+                parsed=${parsed:0:$trailing_index}${trailing_maybe/"$trailing"/""}
+            fi
+
+            hate_template=${hate_template/"$tag"/"$parsed"}
+        else
+            break
+        fi
+
+    done
+}
+
+hate_parse_includes () {
+
+    # Handles all include tags with the form {% include file.html %}.
+    # Receives no arguments.
+    # Returns nothing, updates $hate_template global variable directly.
+
+    local tag=""
+    local file=""
+    while [ true ]; do
+        tag=$(echo $hate_template | egrep -o "\{% *include +[^%]+ *%}" | awk "NR>1{exit};1")
+        if [ "$tag" ]; then
+            file=$(echo $tag | sed "s/{% *include  *\| *%}//g")
+            if [ -e "$file" ]; then
+                echo -n ""
+            else
+                echo "include $file does not exist."
+                exit 3
+            fi
+            contents=$(cat $file)            
+            hate_template=${hate_template/"$tag"/"$contents"}
+        else
+            break
+        fi
+    done
+}
+
+hate_parse_var () {
+
+    # Handles all variable tags with the form {{varname}}.
+    # Arguments: variable name, its value
+    # Returns a copy of $hate_template with the variable replaced.
+
+    local var=$1
+    local value=$2    
+    echo ${hate_template//"\{\{$var\}\}"/"$value"}
+}
+
+
+hate_render () {
+
+    # This is the main entry point to the template system.
+    # Arguments, the template file name, a string with the form "var1: value1,..."
+    # Returns the parsed $hate_template
+
+    if [ -z "$1" ]; then
+        echo "Usage:
+    hate_render templatefile.html
+"
+        exit 1
+    fi
+
+    if [ -e "$1" ]; then
+        echo -n ""
+    else
+        echo "template $1 does not exist."
+        exit 2
+    fi
+
+    hate_template=$(cat "$1")
+
+    hate_parse_includes
+
+    while [ "$hate_variables" ]; do
+        variable=$(echo "$hate_variables" | awk -F ":|," '{print $1}')
+        value=$(echo "$hate_variables" | awk -F ":|," '{print $2}')
+        parsed=$(echo "$hate_variables" | awk -F "," '{print $1}')
+        hate_variables=$(echo "$hate_variables" | sed "s/$parsed, *//g")
+        hate_template=$(hate_parse_var "$variable" "$value")
+    done
+
+    hate_parse_for
+    hate_cleanup_tags
+    echo $hate_template
+}
