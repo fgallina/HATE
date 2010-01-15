@@ -21,40 +21,45 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ###
 
-hate_variables=""
-hate_template=""
+hate_variables=''
+hate_template=''
 
+# Assigns variables for template
+#
+# @param $1 the variable name
+# @param $2 the variable value
+# @return nothing, it modifies the global `hate_variables' var.
 hate_assign () {
     local var=$1
     local value=$2
-    hate_variables=$hate_variables$1":"$2","
+    hate_variables=$hate_variables$1':'$2','
 }
 
-# FIXME: evaluate if a config var should disable this
+# Cleans non replaced variable tags
+#
+# @return nothing, updates `hate_template' global var.
 hate_cleanup_tags () {
-
-    # Cleans non replaced variable tags
-    # Receives no arguments
-    # Returns nothing, updates $hate_template global variable directly.
+    # FIXME: evaluate if a config var should disable this
     hate_template=$(echo $hate_template | sed "s/{{[^}][^}]*}}//g")
     echo -n ""
 }
 
+# Takes care of parsing for tags as the following:
+#
+# {% for1 i in "magic blah bleh"; delete_trailing:"," %}
+#     {{$i}},
+# {% endfor1 %}
+#
+# This will result in
+# magic, blah, bleh
+#
+# Note that everything after ; is optional and to retrieve the
+# index variable you'll need to prepend a dollar sign ($) to the
+# variable. This has been made in order to avoid collisions with
+# standard variables.
+#
+# @return nothing, it modifies the `hate_template' global var.
 hate_parse_for () {
-
-    # Takes care of parsing:
-    # {% for1 i in "magic blah bleh"; delete_trailing:"," %}
-    #     {{$i}},
-    # {% endfor1 %}
-    #
-    # This will result in
-    # magic, blah, bleh
-    # 
-    # Note that everything after ; is optional and to retrieve the
-    # index variable you'll need to prepend a dollar sign ($) to the
-    # variable. This has been made in order to avoid collisions with
-    # standard variables.
-
     local regex=""
     local tag=""
     local contents=""
@@ -73,8 +78,8 @@ hate_parse_for () {
 
     while [ true ]; do
         parsed=""
-        tag=$(echo $hate_template | egrep -o "$regex" | awk "NR>1{exit};1")       
-        
+        tag=$(echo $hate_template | egrep -o "$regex" | awk "NR>1{exit};1")
+
         if [ "$tag" ]; then
             contents=$(echo $tag | sed "s/[^%]*%}\|{%[%]*//g")
             index=$(echo $tag | sed "s/{% *for[0-9][0-9]*  *\|  *in.*//g")
@@ -83,16 +88,15 @@ hate_parse_for () {
             pre=$(echo $contents | sed "s/{{\$$index}}.*//")
             post=$(echo $contents | sed "s/.*{{\$$index}}//")
 
-            for element in $elements; do                
+            for element in $elements; do
                 parsed=$parsed$pre$element$post
             done
-            
+
             if [ "$trailing" ]; then
                 trailing_index=$((${#parsed} - ${#trailing}))
                 trailing_maybe=${parsed:$trailing_index}
                 parsed=${parsed:0:$trailing_index}${trailing_maybe/"$trailing"/""}
             fi
-
             hate_template=${hate_template/"$tag"/"$parsed"}
         else
             break
@@ -101,12 +105,10 @@ hate_parse_for () {
     done
 }
 
+# Handles all include tags with the form {% include file.html %}.
+#
+# @return nothing, updates `hate_template' global var.
 hate_parse_includes () {
-
-    # Handles all include tags with the form {% include file.html %}.
-    # Receives no arguments.
-    # Returns nothing, updates $hate_template global variable directly.
-
     local tag=""
     local file=""
     while [ true ]; do
@@ -119,7 +121,7 @@ hate_parse_includes () {
                 echo "include $file does not exist."
                 exit 3
             fi
-            contents=$(cat $file)            
+            contents=$(cat $file)
             hate_template=${hate_template/"$tag"/"$contents"}
         else
             break
@@ -127,24 +129,22 @@ hate_parse_includes () {
     done
 }
 
+# Handles all variable tags with the form {{varname}}.
+#
+# @param $1 the var name
+# @param $2 the var value
+# @return nothing, updates `hate_template' global var.
 hate_parse_var () {
-
-    # Handles all variable tags with the form {{varname}}.
-    # Arguments: variable name, its value
-    # Returns a copy of $hate_template with the variable replaced.
-
     local var=$1
-    local value=$2    
-    echo ${hate_template//"\{\{$var\}\}"/"$value"}
+    local value=$2
+    hate_template=$(echo ${hate_template//$(echo '{{'$var'}}')/"$value"})
 }
 
-
+# This is the main entry point to the template system.
+#
+# @param $1 the template filename
+# @return the parsed `hate_template' global var.
 hate_render () {
-
-    # This is the main entry point to the template system.
-    # Arguments, the template file name, a string with the form "var1: value1,..."
-    # Returns the parsed $hate_template
-
     if [ -z "$1" ]; then
         echo "Usage:
     hate_render templatefile.html
@@ -168,7 +168,7 @@ hate_render () {
         value=$(echo "$hate_variables" | awk -F ":|," '{print $2}')
         parsed=$(echo "$hate_variables" | awk -F "," '{print $1}')
         hate_variables=$(echo "$hate_variables" | sed "s/$parsed, *//g")
-        hate_template=$(hate_parse_var "$variable" "$value")
+        hate_parse_var "$variable" "$value"
     done
 
     hate_parse_for
