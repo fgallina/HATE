@@ -1,0 +1,53 @@
+This package contains HATE.
+
+0. Info
+
+   Author: Fabián Ezequiel Gallina
+   Contact: fabian at gnu dot org dot ar
+   Project homepage: http://github.com/fgallina/HATE
+   My Blog: http://www.from-the-cloud.com
+   Downloads page: http://github.com/fgallina/HATE/downloads
+
+1. Introduction
+
+   HATE is a (B)Ash based Templating Engine library, inspired a little
+   bit in Django's template engine, created to work with Web pages in
+   embedded devices running busybox and using the Ash shell (normally
+   all routers running linux kernels use this configuration).
+   
+   HATE was specially born to make the Nightwing's[0] Web Interface
+   code cleaner ([b]ash is as powerful as ugly).
+
+   HATE is compatible with Bash so virtually you could use it to
+   whatever you want, the only requirement is your shell to be Bash or
+   Ash.
+
+2. Requirements
+
+   You don't need anything special, just a Bash or Ash shell.
+
+3. Installation
+
+   Just put it whatever you want and then call it inside your
+   "controller" file like this:
+
+   . /path/to/hate
+
+4. Usage
+
+   Once you add the ". /path/to/hate" line in your bash file you have
+   available several template tags. You can see an extensive example
+   of what's available in the tests folder and of course in the code.
+
+5. Bug Reports
+
+   If you find a bug please report it sending an email listed in the
+   top of the file.
+
+6. License
+
+   HATE is free software under the GPL v3, see LICENSE file for
+   details.
+
+
+[0] http://nightwing.lugro-mesh.org.ar/
