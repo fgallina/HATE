@@ -30,24 +30,22 @@ hate_template=''
 # @param $2 optional the object to print
 # @return the error number
 hate_error () {
-    local number=$1
-    local object=$2
-    echo -n "error #$number: "
+    echo -n "error #$1: "
     case $number in
         1)
             echo "template not especified"
             ;;
         2)
-            echo "template $object does not exist."
+            echo "template $2 does not exist."
             ;;
         3)
-            echo "include $object does not exist."
+            echo "include $2 does not exist."
             ;;
         *)
 
     esac
     
-    exit $number
+    exit $1
 }
 
 # Assigns variables for template
@@ -56,8 +54,6 @@ hate_error () {
 # @param $2 the variable value
 # @return nothing, it modifies the global `hate_variables' var.
 hate_assign () {
-    local var=$1
-    local value=$2
     hate_variables=$hate_variables$1':'$2','
 }
 
@@ -159,9 +155,7 @@ hate_parse_includes () {
 # @param $2 the var value
 # @return nothing, updates `hate_template' global var.
 hate_parse_var () {
-    local var=$1
-    local value=$2
-    hate_template=$(echo ${hate_template//$(echo '{{'$var'}}')/"$value"})
+    hate_template=$(echo ${hate_template//$(echo '{{'$1'}}')/"$2"})
 }
 
 # This is the main entry point to the template system.
@@ -169,6 +163,10 @@ hate_parse_var () {
 # @param $1 the template filename
 # @return the parsed `hate_template' global var.
 hate_render () {
+    local variable=""
+    local value=""
+    local parsed=""
+
     if [ -z "$1" ]; then
         hate_error 1
     fi
