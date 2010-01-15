@@ -24,6 +24,32 @@
 hate_variables=''
 hate_template=''
 
+# Exits and prints the correct error message
+#
+# @param $1 the error number
+# @param $2 optional the object to print
+# @return the error number
+hate_error () {
+    local number=$1
+    local object=$2
+    echo -n "error #$number: "
+    case $number in
+        1)
+            echo "template not especified"
+            ;;
+        2)
+            echo "template $object does not exist."
+            ;;
+        3)
+            echo "include $object does not exist."
+            ;;
+        *)
+
+    esac
+    
+    exit $number
+}
+
 # Assigns variables for template
 #
 # @param $1 the variable name
@@ -41,7 +67,6 @@ hate_assign () {
 hate_cleanup_tags () {
     # FIXME: evaluate if a config var should disable this
     hate_template=$(echo $hate_template | sed "s/{{[^}][^}]*}}//g")
-    echo -n ""
 }
 
 # Takes care of parsing for tags as the following:
@@ -116,10 +141,9 @@ hate_parse_includes () {
         if [ "$tag" ]; then
             file=$(echo $tag | sed "s/{% *include  *\| *%}//g")
             if [ -e "$file" ]; then
-                echo -n ""
+                false
             else
-                echo "include $file does not exist."
-                exit 3
+                hate_error 3 "$file"
             fi
             contents=$(cat $file)
             hate_template=${hate_template/"$tag"/"$contents"}
@@ -146,17 +170,13 @@ hate_parse_var () {
 # @return the parsed `hate_template' global var.
 hate_render () {
     if [ -z "$1" ]; then
-        echo "Usage:
-    hate_render templatefile.html
-"
-        exit 1
+        hate_error 1
     fi
 
     if [ -e "$1" ]; then
-        echo -n ""
+        false
     else
-        echo "template $1 does not exist."
-        exit 2
+        hate_error 2 "$1"
     fi
 
     hate_template=$(cat "$1")
